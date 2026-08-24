@@ -1,13 +1,14 @@
 # Foundry VNet Injection Test
 
 Use this repository to test Microsoft Foundry Agent Service VNet injection.
-The repository contains two independent Terraform scenarios.
+The repository contains three independent Terraform scenarios.
 Each scenario creates disposable Azure resources.
 
-| Scenario | Account implementation | Account API |
+| Scenario | Provider | Purpose |
 | --- | --- | --- |
-| `azapi` | AzAPI `2.12.0` | `2025-06-01` by default. You can also select `2026-03-01`. |
-| `azurerm` | AzureRM `4.81.0` | The provider uses `2026-03-01`. |
+| `azapi` | AzAPI `2.12.0` | Test Agent Service VNet injection. The account API is `2025-06-01` by default. |
+| `azurerm` | AzureRM `4.81.0` | Test Agent Service VNet injection through AzureRM. |
+| `aca-private-endpoint` | AzureRM `4.81.0` | Connect VNet-integrated ACA to a locked-down Foundry account through a private endpoint. |
 
 The first test compares both the provider and the API path.
 It is not a provider-only test.
@@ -47,6 +48,7 @@ Each scenario has one Terraform source file:
 | --- | --- |
 | `scenarios/azapi/main.tf` | Defines the AzAPI scenario. |
 | `scenarios/azurerm/main.tf` | Defines the AzureRM scenario. |
+| `scenarios/aca-private-endpoint/main.tf` | Defines the ACA-to-private-Foundry scenario. |
 | `modules/` | Contains the shared network, account, and Standard Agent modules. |
 | `scripts/preflight.sh` | Checks the subscription, account name, and agent subnet. |
 | `scripts/collect-evidence.sh` | Collects Terraform and Azure evidence. |
@@ -104,15 +106,6 @@ Set the subscription ID, a new `run_id`, and the owner tag.
 
 For `run_id = "a001"`, the account name is `fndry-azapi-a001`.
 For AzureRM `run_id = "r001"`, the account name is `fndry-azrm-r001`.
-
-Run the preflight check before you create resources.
-This command does not change Azure resources.
-
-```bash
-./scripts/preflight.sh \
-  --subscription 00000000-0000-0000-0000-000000000000 \
-  --account fndry-azapi-a001
-```
 
 Initialize and validate the AzAPI scenario:
 
@@ -242,6 +235,53 @@ Set this value in the new AzAPI `terraform.tfvars` file:
 
 ```hcl
 account_api_version = "2026-03-01"
+```
+
+## Test ACA with Private Foundry Access
+
+Use this scenario when the agent runtime does not need Foundry VNet injection.
+The scenario creates these resources:
+
+- A workload-profiles Container Apps environment in a delegated subnet.
+- A public ACA probe endpoint with a system-assigned identity.
+- A Foundry account with public network access disabled.
+- A Foundry private endpoint in a separate subnet.
+- The three Foundry private DNS zones linked to the VNet.
+- A `Cognitive Services User` role assignment for the ACA identity.
+
+The Foundry account does not have a `network_injection` block.
+Only ACA uses VNet integration in this scenario.
+
+Create the local variable file:
+
+```bash
+cp scenarios/aca-private-endpoint/terraform.tfvars.example \
+  scenarios/aca-private-endpoint/terraform.tfvars
+```
+
+Set the subscription ID, a new `run_id`, and the owner tag.
+Initialize, validate, and deploy the scenario:
+
+```bash
+terraform -chdir=scenarios/aca-private-endpoint init
+terraform -chdir=scenarios/aca-private-endpoint validate
+terraform -chdir=scenarios/aca-private-endpoint apply
+```
+
+Run the probe command from the Terraform output:
+
+```bash
+$(terraform -chdir=scenarios/aca-private-endpoint output -raw test_command)
+```
+
+A successful result contains `"private_dns": true` and `"network_reachable": true`.
+An HTTP status such as `401`, `403`, or `404` is acceptable for this network test.
+It proves that ACA reached the private Foundry endpoint.
+
+Destroy this independent scenario with this command:
+
+```bash
+terraform -chdir=scenarios/aca-private-endpoint destroy
 ```
 
 ## Phase 3: Create the Full Standard Agent
