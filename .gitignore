@@ -1,0 +1,32 @@
+# Terraform working directories and state
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfstate.lock.info
+
+# Local variables and plans (example files remain tracked)
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+*.tfplan
+
+# Local overrides and CLI configuration
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Terraform crash and command output
+*.log
+crash.log
+crash.*.log
+
+# Generated validation evidence
+evidence/
+
+# Local OS and editor metadata
+.DS_Store
+.vscode/
+.idea/

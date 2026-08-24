@@ -1,0 +1,7 @@
+subscription_id = "00000000-0000-0000-0000-000000000000"
+run_id          = "r001"
+test_phase      = "network"
+
+tags = {
+  owner = "replace-me"
+}
